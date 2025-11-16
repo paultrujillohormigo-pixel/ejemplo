@@ -1,0 +1,225 @@
+/*
+Demo interactivo: "Preview de página para clientes"
+Formato: React single-file component (default export).
+Uso: Pega este archivo en un proyecto React con TailwindCSS (o en CodeSandbox/Stackblitz) para probar.
+
+Características:
+- Formulario para cambiar nombre, descripción, colores y palabras clave de imágenes.
+- Preview en tiempo real de una landing page (hero, productos, contacto).
+- Trae imágenes desde Internet usando la fuente pública de Unsplash (no requiere API key):
+  https://source.unsplash.com/800x600/?<palabra>
+- Genera enlace de WhatsApp con mensaje prellenado.
+- Botones para descargar el HTML estático (crea un archivo .html en el navegador).
+
+Nota: Tailwind se usa en las clases; si no lo tienes, los estilos seguirán legibles.
+*/
+
+import React, { useState, useEffect } from "react";
+
+export default function DemoClientPreview() {
+  const [business, setBusiness] = useState("Mi Negocio");
+  const [tagline, setTagline] = useState("Productos que encantan a tu clientela");
+  const [primaryColor, setPrimaryColor] = useState("#ef4444");
+  const [accentColor, setAccentColor] = useState("#f59e0b");
+  const [imageQuery, setImageQuery] = useState("cafe");
+  const [heroImage, setHeroImage] = useState(getUnsplashUrl("cafe"));
+  const [products, setProducts] = useState([
+    { id: 1, name: "Producto A", price: "$120", imageQuery: "taco" },
+    { id: 2, name: "Producto B", price: "$90", imageQuery: "chilaquiles" },
+    { id: 3, name: "Producto C", price: "$40", imageQuery: "bebida" }
+  ]);
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    setHeroImage(getUnsplashUrl(imageQuery));
+  }, [imageQuery]);
+
+  function getUnsplashUrl(q) {
+    const safe = encodeURIComponent(q || "food");
+    return `https://source.unsplash.com/1200x800/?${safe}`;
+  }
+
+  function updateProductImage(p, q) {
+    setProducts(products.map(prod => prod.id === p.id ? { ...prod, imageQuery: q } : prod));
+  }
+
+  function addProduct() {
+    const nextId = products.length ? Math.max(...products.map(p=>p.id)) + 1 : 1;
+    setProducts([...products, { id: nextId, name: `Nuevo Producto ${nextId}`, price: "$0", imageQuery: "food" }]);
+  }
+
+  function removeProduct(id) {
+    setProducts(products.filter(p => p.id !== id));
+  }
+
+  function generateWhatsAppLink() {
+    const text = encodeURIComponent(`Hola! Me interesa ${business}. ¿Me puedes dar más info?`);
+    // placeholder phone number for demo (empty) — user will replace with real number
+    return `https://wa.me/?text=${text}`;
+  }
+
+  function downloadStaticHtml() {
+    const html = buildStaticHtml();
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${business.replace(/\s+/g,'_')}_demo.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function buildStaticHtml() {
+    // Basic, minimal static HTML using current state
+    const productHtml = products.map(p => {
+      const img = `https://source.unsplash.com/800x600/?${encodeURIComponent(p.imageQuery)}`;
+      return `
+        <div style="border-radius:12px;padding:12px;margin:6px;width:260px;box-shadow:0 6px 16px rgba(0,0,0,0.08)">
+          <img src=\"${img}\" alt=\"${escapeHtml(p.name)}\" style=\"width:100%;height:160px;object-fit:cover;border-radius:8px;\" />
+          <h3 style=\"margin:8px 0 4px;font-family:Arial;\">${escapeHtml(p.name)}</h3>
+          <p style=\"margin:0 0 8px;font-weight:600;\">${escapeHtml(p.price)}</p>
+        </div>
+      `;
+    }).join('\n');
+
+    return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(business)} — Demo</title>
+</head>
+<body style="font-family: Arial, Helvetica, sans-serif; margin:0; padding:0; background:#fff; color:#111;">
+  <header style="background:${primaryColor}; color:#fff; padding:40px 20px; text-align:center;">
+    <h1 style="margin:0; font-size:36px">${escapeHtml(business)}</h1>
+    <p style="margin:6px 0 0; font-size:18px">${escapeHtml(tagline)}</p>
+  </header>
+  <main style="padding:20px; max-width:1100px; margin:0 auto;">
+    <section style="display:flex; gap:20px; margin-top:20px; flex-wrap:wrap;">
+      <div style="flex:1 1 560px;">
+        <img src="${heroImage}" alt="hero" style="width:100%; height:420px; object-fit:cover; border-radius:12px;" />
+      </div>
+      <div style="flex:1 1 360px;">
+        <h2>Sobre nosotros</h2>
+        <p>${escapeHtml(tagline)}</p>
+        <a href="${generateWhatsAppLink()}" style="display:inline-block;margin-top:10px;padding:12px 18px;background:${accentColor};color:#fff;border-radius:8px;text-decoration:none;">Contactar por WhatsApp</a>
+      </div>
+    </section>
+
+    <section style="margin-top:30px;">
+      <h2>Productos</h2>
+      <div style="display:flex;flex-wrap:wrap; gap:12px;">${productHtml}</div>
+    </section>
+  </main>
+</body>
+</html>`;
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  return (
+    <div className={"min-h-screen p-6 " + (theme === 'dark' ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900')}>
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Controls */}
+        <div className="col-span-1 p-4 rounded-2xl shadow-md bg-white/80 backdrop-blur-sm">
+          <h2 className="text-xl font-semibold mb-3">Editor rápido</h2>
+
+          <label className="block text-sm mt-2">Nombre del negocio</label>
+          <input value={business} onChange={e=>setBusiness(e.target.value)} className="w-full rounded-md p-2 border" />
+
+          <label className="block text-sm mt-2">Descripción / Lema</label>
+          <input value={tagline} onChange={e=>setTagline(e.target.value)} className="w-full rounded-md p-2 border" />
+
+          <label className="block text-sm mt-2">Palabra para imagen principal</label>
+          <input value={imageQuery} onChange={e=>setImageQuery(e.target.value)} className="w-full rounded-md p-2 border" />
+
+          <label className="block text-sm mt-2">Color primario (header / botones)</label>
+          <input type="color" value={primaryColor} onChange={e=>setPrimaryColor(e.target.value)} className="w-full h-10 p-1 rounded-md" />
+
+          <label className="block text-sm mt-2">Color acento</label>
+          <input type="color" value={accentColor} onChange={e=>setAccentColor(e.target.value)} className="w-full h-10 p-1 rounded-md" />
+
+          <div className="flex gap-2 mt-3">
+            <button onClick={addProduct} className="px-3 py-2 rounded-md border">+ Producto</button>
+            <button onClick={downloadStaticHtml} className="px-3 py-2 rounded-md border">Descargar HTML</button>
+            <a href={generateWhatsAppLink()} target="_blank" rel="noreferrer" className="px-3 py-2 rounded-md border">Abrir WhatsApp</a>
+          </div>
+
+          <div className="mt-4">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={theme==='dark'} onChange={e=>setTheme(e.target.checked? 'dark':'light')} /> Modo oscuro</label>
+          </div>
+
+          <p className="text-xs mt-3 text-gray-600">Las imágenes se obtienen de Unsplash Source (sin API key): la imagen cambia al actualizar la palabra clave.</p>
+        </div>
+
+        {/* Preview area */}
+        <div className="col-span-2 p-4 rounded-2xl shadow-md bg-white/80 backdrop-blur-sm">
+          <div style={{borderRadius:12, overflow:'hidden', border:`1px solid rgba(0,0,0,0.06)`}}>
+            {/* Header */}
+            <div style={{background:primaryColor, color:'#fff', padding:'28px 24px'}}>
+              <h1 style={{margin:0, fontSize:28, fontWeight:700}}>{business}</h1>
+              <p style={{marginTop:6}}>{tagline}</p>
+            </div>
+
+            {/* Hero */}
+            <div style={{display:'flex', gap:20, padding:20, flexWrap:'wrap'}}>
+              <div style={{flex:'1 1 600px'}}>
+                <img alt="Hero" src={heroImage} style={{width:'100%', height:360, objectFit:'cover', borderRadius:8}} />
+              </div>
+              <div style={{flex:'1 1 300px'}}>
+                <h3>Sobre nosotros</h3>
+                <p>{tagline}</p>
+                <a href={generateWhatsAppLink()} target="_blank" rel="noreferrer" style={{display:'inline-block', marginTop:12, padding:'10px 14px', background:accentColor, color:'#fff', borderRadius:8, textDecoration:'none'}}>Contactar por WhatsApp</a>
+              </div>
+            </div>
+
+            {/* Products grid */}
+            <div style={{padding:20}}>
+              <h3 style={{marginBottom:12}}>Productos</h3>
+              <div style={{display:'flex', gap:12, flexWrap:'wrap'}}>
+                {products.map((p) => (
+                  <div key={p.id} style={{width:260, borderRadius:12, padding:10, boxShadow:'0 8px 20px rgba(2,6,23,0.06)', background:'#fff'}}>
+                    <img src={`https://source.unsplash.com/400x300/?${encodeURIComponent(p.imageQuery)}`} alt={p.name} style={{width:'100%', height:150, objectFit:'cover', borderRadius:8}} />
+                    <div style={{marginTop:8}}>
+                      <strong>{p.name}</strong>
+                      <div style={{display:'flex', justifyContent:'space-between', marginTop:6}}>
+                        <span>{p.price}</span>
+                        <div style={{display:'flex', gap:6}}>
+                          <input value={p.imageQuery} onChange={(e)=>updateProductImage(p, e.target.value)} style={{width:110, padding:6}} />
+                          <button onClick={()=>removeProduct(p.id)} style={{padding:'6px 8px'}}>Eliminar</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{padding:20, borderTop:'1px solid rgba(0,0,0,0.04)'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap'}}>
+                <div><strong>{business}</strong> &middot; {tagline}</div>
+                <div>
+                  <a href={generateWhatsAppLink()} target="_blank" rel="noreferrer" style={{textDecoration:'none', padding:'8px 12px', borderRadius:8, border:`1px solid ${primaryColor}`}}>WhatsApp</a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div className="max-w-7xl mx-auto mt-6 text-sm text-gray-500">
+        <p>Tip: si vas a presentar esto a un cliente, reemplaza el enlace de WhatsApp por su número y personaliza las fotos con palabras clave relevantes (ej: "chilaquiles", "cafetería", "salón")</p>
+      </div>
+    </div>
+  );
+}
