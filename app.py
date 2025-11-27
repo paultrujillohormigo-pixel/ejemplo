@@ -203,12 +203,13 @@ def dashboard():
             params = []
 
             if mes:
-                filtro = "WHERE DATE_FORMAT(fecha, '%Y-%m') = %s"
+                filtro = "WHERE DATE_FORMAT(fecha, '%%Y-%%m') = %s"
                 params.append(mes)
 
             # INGRESOS
             cursor.execute(f"""
-                SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(total) total
+                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
+                       SUM(total) AS total
                 FROM pedidos
                 {filtro}
                 GROUP BY mes
@@ -218,7 +219,8 @@ def dashboard():
 
             # COSTOS
             cursor.execute(f"""
-                SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(costo) costo
+                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
+                       SUM(costo) AS costo
                 FROM insumos_compras
                 {filtro}
                 GROUP BY mes
@@ -228,7 +230,7 @@ def dashboard():
 
             # COSTOS POR TIPO
             cursor.execute(f"""
-                SELECT tipo_costo, SUM(costo) total
+                SELECT tipo_costo, SUM(costo) AS total
                 FROM insumos_compras
                 {filtro}
                 GROUP BY tipo_costo
@@ -239,7 +241,7 @@ def dashboard():
             total_ingresos = sum(i["total"] for i in ingresos if i["total"])
             total_costos = sum(c["costo"] for c in costos if c["costo"])
             utilidad = total_ingresos - total_costos
-            margen = round((utilidad / total_ingresos * 100), 2) if total_ingresos else 0
+            margen = (utilidad / total_ingresos * 100) if total_ingresos else 0
 
             # TOP PRODUCTOS
             cursor.execute("""
@@ -265,9 +267,9 @@ def dashboard():
         total_ingresos=total_ingresos,
         total_costos=total_costos,
         utilidad=utilidad,
-        margen=margen,
+        margen=round(margen, 2),
         top_productos=top_productos,
-        mes=mes
+        mes=mes,
     )
 
 
