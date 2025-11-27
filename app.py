@@ -200,6 +200,20 @@ def dashboard():
     try:
         with conn.cursor() as cursor:
 
+            # ---------- VENTAS POR DÍA ----------
+cursor.execute("""
+    SELECT DATE(fecha) AS dia,
+           COUNT(*) AS pedidos,
+           SUM(total) AS total,
+           SUM(neto) AS neto
+    FROM pedidos
+    GROUP BY DATE(fecha)
+    ORDER BY dia DESC
+    LIMIT 15
+""")
+ventas_dia = cursor.fetchall()
+
+
             filtro = ""
             params = []
 
