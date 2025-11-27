@@ -83,28 +83,10 @@
                     tension: 0.3
                 }
             ]
-        }
-    });
-
-    const labelsTipos = {{ costos_tipo | map(attribute="tipo_costo") | list | tojson }};
-    const dataTipos = {{ costos_tipo | map(attribute="total") | list | tojson }};
-
-    const ctx2 = document.getElementById('graficaCostos').getContext('2d');
-    new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-            labels: labelsTipos,
-            datasets: [{
-                data: dataTipos,
-                backgroundColor: [
-                    '#ff6384',
-                    '#36a2eb',
-                    '#ffce56',
-                    '#4bc0c0',
-                    '#9966ff',
-                    '#ff9f40'
-                ]
-            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
         }
     });
 </script>
