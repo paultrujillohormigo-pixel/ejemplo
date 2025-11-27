@@ -53,11 +53,17 @@ def nuevo_pedido():
             proteinas = cursor.fetchall()
 
             if request.method == "POST":
-                origen = request.form["origen"]       # mostrador / uber
+                # ---------- DATOS GENERALES ----------
+                origen = request.form["origen"]
                 mesero = request.form["mesero"]
                 metodo_pago = request.form["metodo_pago"]
                 monto_uber = Decimal(request.form.get("monto_uber", "0") or "0")
 
+                fecha_pedido = request.form.get("fecha_pedido")
+                if fecha_pedido:
+                    fecha_pedido = fecha_pedido.replace("T", " ")
+
+                # ---------- ITEMS ----------
                 productos_ids = request.form.getlist("producto_id")
                 cantidades = request.form.getlist("cantidad")
                 salsas_ids = request.form.getlist("salsa_id")
@@ -69,11 +75,11 @@ def nuevo_pedido():
                 for i, prod_id in enumerate(productos_ids):
                     if not prod_id:
                         continue
+
                     cant = int(cantidades[i] or 0)
                     if cant <= 0:
                         continue
 
-                    # precio del producto
                     cursor.execute("SELECT precio FROM productos WHERE id=%s", (prod_id,))
                     row = cursor.fetchone()
                     if not row:
@@ -92,22 +98,39 @@ def nuevo_pedido():
                         "proteina_id": proteinas_ids[i] or None
                     })
 
-                neto = total + monto_uber  # si monto_uber es negativo, resta
+                neto = total + monto_uber  # monto_uber negativo = comisión
 
-                # Inserta pedido
-                sql_pedido = """
-                    INSERT INTO pedidos (origen, mesero, metodo_pago, total, monto_uber, neto)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(sql_pedido, (origen, mesero, metodo_pago, total, monto_uber, neto))
+                # ---------- INSERT PEDIDO ----------
+                if fecha_pedido:
+                    sql_pedido = """
+                        INSERT INTO pedidos
+                        (fecha, origen, mesero, metodo_pago, total, monto_uber, neto)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(
+                        sql_pedido,
+                        (fecha_pedido, origen, mesero, metodo_pago, total, monto_uber, neto)
+                    )
+                else:
+                    sql_pedido = """
+                        INSERT INTO pedidos
+                        (origen, mesero, metodo_pago, total, monto_uber, neto)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(
+                        sql_pedido,
+                        (origen, mesero, metodo_pago, total, monto_uber, neto)
+                    )
+
                 pedido_id = cursor.lastrowid
 
-                # Inserta items
+                # ---------- INSERT ITEMS ----------
                 sql_item = """
                     INSERT INTO pedido_items
                     (pedido_id, producto_id, salsa_id, proteina_id, cantidad, precio_unitario, subtotal)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
+
                 for it in items:
                     cursor.execute(
                         sql_item,
@@ -136,14 +159,13 @@ def nuevo_pedido():
         proteinas=proteinas
     )
 
-# ------------------ DASHBOARD SIMPLE ------------------
+# ------------------ DASHBOARD ------------------
 @app.route("/dashboard")
 def dashboard():
     conn = get_connection()
     data = {}
     try:
         with conn.cursor() as cursor:
-            # Ventas por día (últimos 7 días)
             cursor.execute("""
                 SELECT DATE(fecha) AS dia, SUM(total) AS total_dia, SUM(neto) AS neto_dia
                 FROM pedidos
@@ -153,7 +175,6 @@ def dashboard():
             """)
             data["por_dia"] = cursor.fetchall()
 
-            # TOP 10 productos
             cursor.execute("""
                 SELECT p.nombre, SUM(pi.cantidad) AS cantidad_vendida, SUM(pi.subtotal) AS ingreso
                 FROM pedido_items pi
@@ -164,7 +185,6 @@ def dashboard():
             """)
             data["top_productos"] = cursor.fetchall()
 
-            # Ventas por origen (mostrador, uber, etc.)
             cursor.execute("""
                 SELECT origen, COUNT(*) AS pedidos, SUM(neto) AS neto
                 FROM pedidos
@@ -176,7 +196,6 @@ def dashboard():
         conn.close()
 
     return render_template("dashboard.html", data=data)
-
 
 if __name__ == "__main__":
     app.run(debug=True)
