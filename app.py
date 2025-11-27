@@ -3,31 +3,33 @@ from db import get_connection
 from decimal import Decimal
 
 app = Flask(__name__)
-app.secret_key = "super_secret_key"  # cámbiala
+app.secret_key = "super_secret_key"  # cámbiala en prod
+
 
 # ------------------ HOME ------------------
 @app.route("/")
 def index():
     return redirect(url_for("nuevo_pedido"))
 
-# ------------------ PRODUCTOS (ADMIN) ------------------
+
+# ------------------ PRODUCTOS ------------------
 @app.route("/productos", methods=["GET", "POST"])
 def productos():
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
             if request.method == "POST":
-                nombre = request.form["nombre"]
-                categoria = request.form["categoria"]
-                costo = request.form["costo"]
-                precio = request.form["precio"]
-
                 cursor.execute(
                     """
                     INSERT INTO productos (nombre, categoria, costo, precio)
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (%s,%s,%s,%s)
                     """,
-                    (nombre, categoria, costo, precio)
+                    (
+                        request.form["nombre"],
+                        request.form["categoria"],
+                        request.form["costo"],
+                        request.form["precio"],
+                    ),
                 )
                 conn.commit()
                 flash("Producto creado correctamente", "success")
@@ -41,14 +43,16 @@ def productos():
 
     return render_template("productos.html", productos=productos)
 
+
 # ------------------ NUEVO PEDIDO ------------------
 @app.route("/nuevo_pedido", methods=["GET", "POST"])
 def nuevo_pedido():
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
-            # Cargar catálogos
-            cursor.execute("SELECT * FROM productos WHERE activo = 1 ORDER BY categoria, nombre")
+            cursor.execute(
+                "SELECT * FROM productos WHERE activo = 1 ORDER BY categoria, nombre"
+            )
             productos = cursor.fetchall()
 
             cursor.execute("SELECT * FROM salsas")
@@ -58,7 +62,6 @@ def nuevo_pedido():
             proteinas = cursor.fetchall()
 
             if request.method == "POST":
-                # ---------- DATOS GENERALES ----------
                 origen = request.form["origen"]
                 mesero = request.form["mesero"]
                 metodo_pago = request.form["metodo_pago"]
@@ -68,14 +71,13 @@ def nuevo_pedido():
                 if fecha_pedido:
                     fecha_pedido = fecha_pedido.replace("T", " ")
 
-                # ---------- ITEMS ----------
                 productos_ids = request.form.getlist("producto_id")
                 cantidades = request.form.getlist("cantidad")
                 salsas_ids = request.form.getlist("salsa_id")
                 proteinas_ids = request.form.getlist("proteina_id")
 
-                items = []
                 total = Decimal("0")
+                items = []
 
                 for i, prod_id in enumerate(productos_ids):
                     if not prod_id:
@@ -85,78 +87,66 @@ def nuevo_pedido():
                     if cant <= 0:
                         continue
 
-                    # ------ PRECIO SEGÚN ORIGEN ------
-                    precio_unit = None
+                    cursor.execute(
+                        "SELECT precio FROM productos WHERE id = %s", (prod_id,)
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        continue
 
-                    if origen == "uber":
-                        cursor.execute(
-                            """
-                            SELECT precio
-                            FROM productos_precios
-                            WHERE producto_id = %s AND canal = 'uber'
-                            """,
-                            (prod_id,)
-                        )
-                        row_precio = cursor.fetchone()
-                        if row_precio:
-                            precio_unit = Decimal(row_precio["precio"])
-
-                    # Fallback a precio normal
-                    if precio_unit is None:
-                        cursor.execute(
-                            "SELECT precio FROM productos WHERE id = %s",
-                            (prod_id,)
-                        )
-                        row = cursor.fetchone()
-                        if not row:
-                            continue
-                        precio_unit = Decimal(row["precio"])
-
-                    # ------ SUBTOTAL ------
+                    precio_unit = Decimal(row["precio"])
                     subtotal = precio_unit * cant
                     total += subtotal
 
-                    items.append({
-                        "producto_id": prod_id,
-                        "cantidad": cant,
-                        "precio_unitario": precio_unit,
-                        "subtotal": subtotal,
-                        "salsa_id": salsas_ids[i] or None,
-                        "proteina_id": proteinas_ids[i] or None
-                    })
+                    items.append(
+                        {
+                            "producto_id": prod_id,
+                            "cantidad": cant,
+                            "precio_unitario": precio_unit,
+                            "subtotal": subtotal,
+                            "salsa_id": salsas_ids[i] or None,
+                            "proteina_id": proteinas_ids[i] or None,
+                        }
+                    )
 
-                neto = total + monto_uber  # monto_uber negativo = comisión
+                neto = total + monto_uber
 
-                # ---------- INSERT PEDIDO ----------
                 if fecha_pedido:
                     cursor.execute(
                         """
                         INSERT INTO pedidos
                         (fecha, origen, mesero, metodo_pago, total, monto_uber, neto)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
                         """,
-                        (fecha_pedido, origen, mesero, metodo_pago, total, monto_uber, neto)
+                        (
+                            fecha_pedido,
+                            origen,
+                            mesero,
+                            metodo_pago,
+                            total,
+                            monto_uber,
+                            neto,
+                        ),
                     )
                 else:
                     cursor.execute(
                         """
                         INSERT INTO pedidos
                         (origen, mesero, metodo_pago, total, monto_uber, neto)
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                        VALUES (%s,%s,%s,%s,%s,%s)
                         """,
-                        (origen, mesero, metodo_pago, total, monto_uber, neto)
+                        (origen, mesero, metodo_pago, total, monto_uber, neto),
                     )
 
                 pedido_id = cursor.lastrowid
 
-                # ---------- INSERT ITEMS ----------
                 for it in items:
                     cursor.execute(
                         """
                         INSERT INTO pedido_items
                         (pedido_id, producto_id, salsa_id, proteina_id,
                          cantidad, precio_unitario, subtotal)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
                         """,
                         (
                             pedido_id,
@@ -165,14 +155,14 @@ def nuevo_pedido():
                             it["proteina_id"],
                             it["cantidad"],
                             it["precio_unitario"],
-                            it["subtotal"]
-                        )
+                            it["subtotal"],
+                        ),
                     )
 
                 conn.commit()
                 flash(
-                    f"Pedido {pedido_id} registrado. Total: ${total}, Neto: ${neto}",
-                    "success"
+                    f"Pedido {pedido_id} registrado. Total: ${total}",
+                    "success",
                 )
                 return redirect(url_for("nuevo_pedido"))
 
@@ -183,142 +173,96 @@ def nuevo_pedido():
         "nuevo_pedido.html",
         productos=productos,
         salsas=salsas,
-        proteinas=proteinas
+        proteinas=proteinas,
     )
 
-# ------------------ DASHBOARD ------------------
-@app.route("/dashboard")
-def dashboard():
-    conn = get_connection()
-    data = {}
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT DATE(fecha) AS dia,
-                       SUM(total) AS total_dia,
-                       SUM(neto) AS neto_dia
-                FROM pedidos
-                GROUP BY DATE(fecha)
-                ORDER BY dia DESC
-                LIMIT 7
-                """
-            )
-            data["por_dia"] = cursor.fetchall()
 
-            cursor.execute(
-                """
-                SELECT p.nombre,
-                       SUM(pi.cantidad) AS cantidad_vendida,
-                       SUM(pi.subtotal) AS ingreso
-                FROM pedido_items pi
-                JOIN productos p ON p.id = pi.producto_id
-                GROUP BY pi.producto_id
-                ORDER BY ingreso DESC
-                LIMIT 10
-                """
-            )
-            data["top_productos"] = cursor.fetchall()
-
-            cursor.execute(
-                """
-                SELECT origen,
-                       COUNT(*) AS pedidos,
-                       SUM(neto) AS neto
-                FROM pedidos
-                GROUP BY origen
-                """
-            )
-            data["por_origen"] = cursor.fetchall()
-
-    finally:
-        conn.close()
-
-    return render_template("dashboard.html", data=data)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+# ------------------ COMPRAS ------------------
 @app.route("/compras", methods=["GET", "POST"])
 def compras():
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
             if request.method == "POST":
-                
-                fecha = request.form["fecha"]
-                lugar = request.form["lugar"]
-                cantidad = request.form["cantidad"]
-                unidad = request.form["unidad"]
-                concepto = request.form["concepto"]
-                costo = request.form["costo"]
-                tipo_costo = request.form["tipo_costo"]
-                nota = request.form.get("nota", "")
-
-                sql = """
-                INSERT INTO insumos_compras
-                (fecha, lugar, cantidad, unidad, concepto, costo, tipo_costo, nota)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """
-
-                cursor.execute(sql, (
-                    fecha, lugar, cantidad, unidad,
-                    concepto, costo, tipo_costo, nota
-                ))
+                cursor.execute(
+                    """
+                    INSERT INTO insumos_compras
+                    (fecha, lugar, cantidad, unidad, concepto, costo, tipo_costo, nota)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                    """,
+                    (
+                        request.form["fecha"],
+                        request.form["lugar"],
+                        request.form["cantidad"],
+                        request.form["unidad"],
+                        request.form["concepto"],
+                        request.form["costo"],
+                        request.form["tipo_costo"],
+                        request.form.get("nota", ""),
+                    ),
+                )
                 conn.commit()
-
                 flash("Compra registrada correctamente", "success")
 
-            cursor.execute("SELECT * FROM insumos_compras ORDER BY fecha DESC, id DESC")
+            cursor.execute(
+                "SELECT * FROM insumos_compras ORDER BY fecha DESC, id DESC"
+            )
             compras = cursor.fetchall()
-
     finally:
         conn.close()
 
     return render_template("compras.html", compras=compras)
+
+
+# ------------------ DASHBOARD ------------------
 @app.route("/dashboard")
 def dashboard():
-    mes = request.args.get("mes")
-
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    try:
+        with conn.cursor(dictionary=True) as cursor:
 
-    filtro = ""
-    params = ()
+            cursor.execute("""
+                SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(total) total
+                FROM pedidos
+                GROUP BY mes
+                ORDER BY mes
+            """)
+            ingresos = cursor.fetchall()
 
-    if mes:
-        filtro = "WHERE DATE_FORMAT(fecha, '%Y-%m') = %s"
-        params = (mes,)
+            cursor.execute("""
+                SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(costo) costo
+                FROM insumos_compras
+                GROUP BY mes
+                ORDER BY mes
+            """)
+            costos = cursor.fetchall()
 
-    cursor.execute(f"""
-        SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(total) total
-        FROM pedidos
-        {filtro}
-        GROUP BY mes
-        ORDER BY mes
-    """, params)
-    ingresos = cursor.fetchall()
+            cursor.execute("""
+                SELECT tipo_costo, SUM(costo) total
+                FROM insumos_compras
+                GROUP BY tipo_costo
+            """)
+            costos_tipo = cursor.fetchall()
 
-    cursor.execute(f"""
-        SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(costo) costo
-        FROM insumos_compras
-        {filtro}
-        GROUP BY mes
-        ORDER BY mes
-    """, params)
-    costos = cursor.fetchall()
+            total_ingresos = sum(i["total"] for i in ingresos) if ingresos else 0
+            total_costos = sum(c["costo"] for c in costos) if costos else 0
+            utilidad = total_ingresos - total_costos
+            margen = round((utilidad / total_ingresos) * 100, 2) if total_ingresos else 0
 
-    cursor.execute(f"""
-        SELECT tipo_costo, SUM(costo) total
-        FROM insumos_compras
-        {filtro}
-        GROUP BY tipo_costo
-    """, params)
-    costos_tipo = cursor.fetchall()
+            cursor.execute("""
+                SELECT p.nombre,
+                       SUM(pi.cantidad) cantidad,
+                       SUM(pi.subtotal) ingreso
+                FROM pedido_items pi
+                JOIN productos p ON p.id = pi.producto_id
+                GROUP BY p.id
+                ORDER BY ingreso DESC
+                LIMIT 10
+            """)
+            top_productos = cursor.fetchall()
 
-    total_ingresos = sum(i["total"] for i in ingresos) if ingresos else 0
-    total_costos = sum(c["costo"] for c in costos) if costos else 0
-    utilidad = total_ingresos - total_costos
-    margen = (utilidad / total_ingresos * 100) if total_ingresos > 0 else 0
+    finally:
+        conn.close()
 
     return render_template(
         "dashboard.html",
@@ -328,5 +272,11 @@ def dashboard():
         total_ingresos=total_ingresos,
         total_costos=total_costos,
         utilidad=utilidad,
-        margen=round(margen, 2)
+        margen=margen,
+        top_productos=top_productos,
     )
+
+
+# ------------------ RUN ------------------
+if __name__ == "__main__":
+    app.run(debug=True)
