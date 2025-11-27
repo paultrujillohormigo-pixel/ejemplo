@@ -55,6 +55,37 @@
 
 <hr>
 
+
+
+
+<!-- ================= TOP PRODUCTOS ================= -->
+
+
+
+<h3 style="margin-top:40px;">📅 Ventas por día</h3>
+
+<table border="1" cellpadding="8" cellspacing="0" style="width:100%; margin-bottom:30px;">
+    <thead>
+        <tr style="background:#222; color:white;">
+            <th>Día</th>
+            <th># Pedidos</th>
+            <th>Total</th>
+            <th>Neto</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in ventas_dia %}
+        <tr>
+            <td>{{ v.dia }}</td>
+            <td style="text-align:center;">{{ v.pedidos }}</td>
+            <td style="text-align:right;">{{ v.total | money }}</td>
+            <td style="text-align:right;">{{ v.neto | money }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
 <!-- ================= TOP PRODUCTOS ================= -->
 <h3>Top productos vendidos</h3>
 <table>
