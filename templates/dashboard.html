@@ -30,7 +30,7 @@
 
 <div class="graficas-container">
 
-    <!-- GRAFICA INGRESOS -->
+    <!-- GRAFICA LINEA -->
     <div class="grafica-box">
         <h3>Ingresos vs Costos (por mes)</h3>
         <div class="canvas-wrapper">
@@ -38,7 +38,7 @@
         </div>
     </div>
 
-    <!-- GRAFICA COSTOS -->
+    <!-- GRAFICA PASTEL -->
     <div class="grafica-box">
         <h3>Costos por tipo</h3>
         <div class="canvas-wrapper">
@@ -81,15 +81,15 @@
                 {
                     label: 'Ingresos',
                     data: dataIngresos,
-                    borderColor: 'green',
-                    backgroundColor: 'rgba(0,128,0,0.2)',
+                    borderColor: 'rgb(0,200,0)',
+                    backgroundColor: 'rgba(0,200,0,0.2)',
                     tension: 0.3
                 },
                 {
                     label: 'Costos',
                     data: dataCostos,
-                    borderColor: 'red',
-                    backgroundColor: 'rgba(255,0,0,0.2)',
+                    borderColor: 'rgb(220,0,0)',
+                    backgroundColor: 'rgba(220,0,0,0.2)',
                     tension: 0.3
                 }
             ]
@@ -133,9 +133,10 @@
 
 <!-- ================= ESTILOS ================= -->
 <style>
+/* KPIs */
 .kpis{
     display:grid;
-    grid-template-columns: repeat(4,1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap:15px;
     margin-bottom:30px;
 }
@@ -148,17 +149,24 @@
     text-align:center;
 }
 
+/* Graficas */
 .graficas-container{
     display:grid;
     grid-template-columns: 2fr 1fr;
     gap:25px;
     margin:30px 0;
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
 }
 
 .grafica-box{
     background:#111;
     padding:20px;
     border-radius:12px;
+    width:100%;
+    max-width:100%;
+    overflow:hidden;
 }
 
 .grafica-box h3{
@@ -167,12 +175,14 @@
     color:white;
 }
 
+/* Control REAL del tamaño */
 .canvas-wrapper{
-    position: relative;
-    height: 260px;
-    width: 100%;
+    position:relative;
+    width:100%;
+    height:260px;
 }
 
+/* Tabla */
 table{
     width:100%;
     margin-top:15px;
@@ -187,6 +197,16 @@ th{
 td, th{
     padding:8px;
     border:1px solid #333;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .graficas-container{
+        grid-template-columns: 1fr;
+    }
+    .kpis{
+        grid-template-columns: 1fr 1fr;
+    }
 }
 </style>
 
