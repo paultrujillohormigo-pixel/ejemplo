@@ -80,14 +80,32 @@ def nuevo_pedido():
                     if cant <= 0:
                         continue
 
-                    cursor.execute("SELECT precio FROM productos WHERE id=%s", (prod_id,))
-                    row = cursor.fetchone()
-                    if not row:
-                        continue
+# -------- OBTENER PRECIO SEGÚN ORIGEN --------
+precio_unit = None
 
-                    precio_unit = Decimal(row["precio"])
-                    subtotal = precio_unit * cant
-                    total += subtotal
+if origen == "uber":
+    cursor.execute("""
+        SELECT precio
+        FROM productos_precios
+        WHERE producto_id = %s
+          AND canal = 'uber'
+    """, (prod_id,))
+    row_precio = cursor.fetchone()
+
+    if row_precio:
+        precio_unit = Decimal(row_precio["precio"])
+
+# Fallback a precio normal
+if precio_unit is None:
+    cursor.execute("SELECT precio FROM productos WHERE id=%s", (prod_id,))
+    row = cursor.fetchone()
+    if not row:
+        continue
+    precio_unit = Decimal(row["precio"])
+
+# -------- CALCULAR SUBTOTAL --------
+subtotal = precio_unit * cant
+total += subtotal
 
                     items.append({
                         "producto_id": prod_id,
