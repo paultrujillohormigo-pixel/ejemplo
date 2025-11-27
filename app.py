@@ -1,10 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-from db import get_connection
 from decimal import Decimal
+from db import get_connection
 
 app = Flask(__name__)
-app.secret_key = "super_secret_key"  # cambiar en prod
-
+app.secret_key = "super_secret_key"  # cambia en prod
 
 
 # ================== FILTRO DE MONEDA ==================
@@ -32,18 +31,19 @@ def productos():
             if request.method == "POST":
                 cursor.execute("""
                     INSERT INTO productos (nombre, categoria, costo, precio)
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (%s,%s,%s,%s)
                 """, (
                     request.form["nombre"],
                     request.form["categoria"],
                     request.form["costo"],
-                    request.form["precio"]
+                    request.form["precio"],
                 ))
                 conn.commit()
                 flash("Producto creado correctamente", "success")
 
             cursor.execute("""
-                SELECT * FROM productos
+                SELECT *
+                FROM productos
                 WHERE activo = 1
                 ORDER BY categoria, nombre
             """)
@@ -77,10 +77,6 @@ def nuevo_pedido():
                 metodo_pago = request.form["metodo_pago"]
                 monto_uber = Decimal(request.form.get("monto_uber", "0") or "0")
 
-                fecha_pedido = request.form.get("fecha_pedido")
-                if fecha_pedido:
-                    fecha_pedido = fecha_pedido.replace("T", " ")
-
                 productos_ids = request.form.getlist("producto_id")
                 cantidades = request.form.getlist("cantidad")
                 salsas_ids = request.form.getlist("salsa_id")
@@ -97,7 +93,10 @@ def nuevo_pedido():
                     if cant <= 0:
                         continue
 
-                    cursor.execute("SELECT precio FROM productos WHERE id = %s", (prod_id,))
+                    cursor.execute(
+                        "SELECT precio FROM productos WHERE id = %s",
+                        (prod_id,)
+                    )
                     row = cursor.fetchone()
                     if not row:
                         continue
@@ -112,7 +111,7 @@ def nuevo_pedido():
                         "precio_unitario": precio_unit,
                         "subtotal": subtotal,
                         "salsa_id": salsas_ids[i] or None,
-                        "proteina_id": proteinas_ids[i] or None
+                        "proteina_id": proteinas_ids[i] or None,
                     })
 
                 neto = total + monto_uber
@@ -121,7 +120,10 @@ def nuevo_pedido():
                     INSERT INTO pedidos
                     (fecha, origen, mesero, metodo_pago, total, monto_uber, neto)
                     VALUES (NOW(), %s, %s, %s, %s, %s, %s)
-                """, (origen, mesero, metodo_pago, total, monto_uber, neto))
+                """, (
+                    origen, mesero, metodo_pago,
+                    total, monto_uber, neto
+                ))
 
                 pedido_id = cursor.lastrowid
 
@@ -138,7 +140,7 @@ def nuevo_pedido():
                         it["proteina_id"],
                         it["cantidad"],
                         it["precio_unitario"],
-                        it["subtotal"]
+                        it["subtotal"],
                     ))
 
                 conn.commit()
@@ -148,10 +150,12 @@ def nuevo_pedido():
     finally:
         conn.close()
 
-    return render_template("nuevo_pedido.html",
-                           productos=productos,
-                           salsas=salsas,
-                           proteinas=proteinas)
+    return render_template(
+        "nuevo_pedido.html",
+        productos=productos,
+        salsas=salsas,
+        proteinas=proteinas,
+    )
 
 
 # ================== COMPRAS ==================
@@ -174,13 +178,14 @@ def compras():
                     request.form["concepto"],
                     request.form["costo"],
                     request.form["tipo_costo"],
-                    request.form.get("nota", "")
+                    request.form.get("nota", ""),
                 ))
                 conn.commit()
                 flash("Compra registrada correctamente", "success")
 
             cursor.execute("""
-                SELECT * FROM insumos_compras
+                SELECT *
+                FROM insumos_compras
                 ORDER BY fecha DESC, id DESC
             """)
             compras = cursor.fetchall()
@@ -191,7 +196,6 @@ def compras():
     return render_template("compras.html", compras=compras)
 
 
-# ================== DASHBOARD (✅ ÚNICO) ==================
 # ================== DASHBOARD ==================
 @app.route("/dashboard")
 def dashboard():
@@ -205,28 +209,12 @@ def dashboard():
             params = []
 
             if mes:
-                filtro = "WHERE DATE_FORMAT(fecha, '%%Y-%%m') = %s"
+                filtro = "WHERE DATE_FORMAT(fecha, '%Y-%m') = %s"
                 params.append(mes)
-
-            # ---------- VENTAS POR DÍA ----------
-
-            cursor.execute(f"""
-                SELECT DATE(fecha) AS dia,
-                       COUNT(*) AS pedidos,
-                       SUM(total) AS total,
-                       SUM(neto) AS neto
-                FROM pedidos
-                {filtro}
-                GROUP BY DATE(fecha)
-                ORDER BY dia DESC
-            """, params)
-            
-            ventas_dia = cursor.fetchall()
-
 
             # ---------- INGRESOS ----------
             cursor.execute(f"""
-                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
+                SELECT DATE_FORMAT(fecha, '%Y-%m') AS mes,
                        SUM(total) AS total
                 FROM pedidos
                 {filtro}
@@ -237,7 +225,7 @@ def dashboard():
 
             # ---------- COSTOS ----------
             cursor.execute(f"""
-                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
+                SELECT DATE_FORMAT(fecha, '%Y-%m') AS mes,
                        SUM(costo) AS costo
                 FROM insumos_compras
                 {filtro}
@@ -248,7 +236,8 @@ def dashboard():
 
             # ---------- COSTOS POR TIPO ----------
             cursor.execute(f"""
-                SELECT tipo_costo, SUM(costo) AS total
+                SELECT tipo_costo,
+                       SUM(costo) AS total
                 FROM insumos_compras
                 {filtro}
                 GROUP BY tipo_costo
@@ -261,9 +250,22 @@ def dashboard():
             utilidad = total_ingresos - total_costos
             margen = (utilidad / total_ingresos * 100) if total_ingresos else 0
 
+            # ---------- VENTAS POR DÍA ----------
+            cursor.execute(f"""
+                SELECT DATE(fecha) AS dia,
+                       COUNT(*) AS pedidos,
+                       SUM(total) AS total,
+                       SUM(neto) AS neto
+                FROM pedidos
+                {filtro}
+                GROUP BY DATE(fecha)
+                ORDER BY dia DESC
+            """, params)
+            ventas_dia = cursor.fetchall()
+
             # ---------- TOP PRODUCTOS ----------
-           cursor.execute(f"""
-                    SELECT p.nombre,
+            cursor.execute(f"""
+                SELECT p.nombre,
                        SUM(pi.cantidad) AS cantidad,
                        SUM(pi.subtotal) AS ingreso
                 FROM pedido_items pi
@@ -274,8 +276,8 @@ def dashboard():
                 ORDER BY ingreso DESC
                 LIMIT 10
             """, params)
-
             top_productos = cursor.fetchall()
+
     finally:
         conn.close()
 
@@ -284,18 +286,14 @@ def dashboard():
         ingresos=ingresos,
         costos=costos,
         costos_tipo=costos_tipo,
+        ventas_dia=ventas_dia,
+        top_productos=top_productos,
         total_ingresos=total_ingresos,
         total_costos=total_costos,
         utilidad=utilidad,
         margen=round(margen, 2),
-        top_productos=top_productos,
-        ventas_dia=ventas_dia,
-        mes=mes
+        mes=mes,
     )
-
-
-
-
 
 
 # ================== RUN ==================
