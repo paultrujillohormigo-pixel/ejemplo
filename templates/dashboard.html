@@ -79,7 +79,7 @@
     const dataCostos = {{ costos | map(attribute="costo") | list | tojson }};
 
     new Chart(document.getElementById('graficaIngresos'), {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: labelsMeses,
             datasets: [
