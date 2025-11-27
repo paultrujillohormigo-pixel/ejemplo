@@ -219,8 +219,8 @@ def compras():
 def dashboard():
     conn = get_connection()
     try:
-        with conn.cursor(dictionary=True) as cursor:
-
+        with conn.cursor() as cursor:
+            
             cursor.execute("""
                 SELECT DATE_FORMAT(fecha, '%Y-%m') mes, SUM(total) total
                 FROM pedidos
