@@ -5,17 +5,7 @@ from decimal import Decimal
 app = Flask(__name__)
 app.secret_key = "super_secret_key"  # cambiar en prod
 
-cursor.execute("""
-    SELECT DATE(fecha) AS dia,
-           COUNT(*) AS pedidos,
-           SUM(total) AS total,
-           SUM(neto) AS neto
-    FROM pedidos
-    GROUP BY DATE(fecha)
-    ORDER BY dia DESC
-    LIMIT 15
-""")
-ventas_dia = cursor.fetchall()
+
 
 # ================== FILTRO DE MONEDA ==================
 @app.template_filter("money")
