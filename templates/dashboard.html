@@ -50,20 +50,7 @@
             </div>
         </div>
 
-        <!-- ===== GRAFICAS ===== -->
-        <div class="charts-grid">
-
-            <div class="card">
-                <h4>Ingresos vs Costos</h4>
-                <canvas id="ingresosChart" class="chart-canvas"></canvas>
-            </div>
-
-            <div class="card">
-                <h4>Costos por Tipo</h4>
-                <canvas id="costosChart" class="chart-canvas"></canvas>
-            </div>
-
-        </div>
+       
 
         <!-- ===== TABLA VENTAS POR DÍA ===== -->
         <div class="card">
@@ -86,24 +73,43 @@
             </table>
         </div>
 
-        <!-- ===== TOP PRODUCTOS ===== -->
+<!-- ===== SECCIÓN PRINCIPAL ===== -->
+<div class="bottom-grid">
+
+    <!-- IZQUIERDA: TOP PRODUCTOS -->
+    <div class="card tabla-top">
+        <h4>Top Productos</h4>
+        <table>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Ingreso</th>
+            </tr>
+            {% for p in top_productos %}
+            <tr>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.cantidad }}</td>
+                <td>{{ p.ingreso | money }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <!-- DERECHA: GRAFICAS -->
+    <div class="charts-vertical">
         <div class="card">
-            <h4>Top Productos</h4>
-            <table>
-                <tr>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Ingreso</th>
-                </tr>
-                {% for p in top_productos %}
-                <tr>
-                    <td>{{ p.nombre }}</td>
-                    <td>{{ p.cantidad }}</td>
-                    <td>{{ p.ingreso | money }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+            <h4>Ingresos vs Costos</h4>
+            <canvas id="ingresosChart" class="chart-canvas"></canvas>
         </div>
+
+        <div class="card">
+            <h4>Costos por Tipo</h4>
+            <canvas id="costosChart" class="chart-canvas"></canvas>
+        </div>
+    </div>
+
+</div>
+
 
     </main>
 </div>
@@ -275,6 +281,32 @@ td {
     padding:8px;
     border-bottom:1px solid #e5e7eb;
 }
+
+    /* ===== SECCIÓN 50 / 50 ===== */
+.bottom-grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:20px;
+    margin-bottom:20px;
+}
+
+/* Columna derecha: gráficas en vertical */
+.charts-vertical {
+    display:grid;
+    grid-template-rows: 1fr 1fr;
+    gap:20px;
+}
+
+/* Ajustes visuales */
+.tabla-top {
+    height:640px;
+    overflow:auto;
+}
+
+.charts-vertical .card {
+    height:310px;
+}
+
 </style>
 
 {% endblock %}
