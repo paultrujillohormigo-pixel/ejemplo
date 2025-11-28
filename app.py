@@ -277,6 +277,14 @@ def dashboard():
                 LIMIT 10
             """, params)
             top_productos = cursor.fetchall()
+            # ===== MESES DISPONIBLES =====
+            cursor.execute("""
+                SELECT DISTINCT DATE_FORMAT(fecha, '%Y-%m') AS mes
+                FROM pedidos
+                ORDER BY mes DESC
+            """)
+            meses_disponibles = [m["mes"] for m in cursor.fetchall()]
+
 
     finally:
         conn.close()
@@ -292,6 +300,7 @@ def dashboard():
         total_costos=total_costos,
         utilidad=utilidad,
         margen=round(margen, 2),
+        meses_disponibles=meses_disponibles,  # 👈 ESTA LÍNEA
         mes=mes,
     )
 
