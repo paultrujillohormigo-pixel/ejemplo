@@ -54,7 +54,7 @@
 <div class="bottom-grid">
 
     <!-- IZQUIERDA: TOP PRODUCTOS -->
-    <div class="card tabla-top">
+    <div class="card card card-tabla">
         <h4>Top Productos</h4>
         <table>
             <tr>
@@ -88,7 +88,7 @@
 </div>
 
         <!-- ===== TABLA VENTAS POR DÍA ===== -->
-        <div class="card card-grafica">
+        <div class="card card card-tabla">
             <h4>Ventas por Día</h4>
             <table>
                 <tr>
@@ -259,6 +259,8 @@ body { background:#f4f6f9; }
     flex-direction:column;
 }
 .card-grafica {
+    display:flex;
+    flex-direction:column;
     height:300px;
 }
 
@@ -308,7 +310,10 @@ td {
 .charts-vertical .card {
     height:310px;
 }
-
+.card-tabla {
+    display:block;      /* ✅ clave */
+    height:auto;        /* ✅ se adapta */
+}
 </style>
 
 {% endblock %}
