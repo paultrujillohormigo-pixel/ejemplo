@@ -133,19 +133,20 @@ td {
     <aside class="sidebar">
         <h3>📊 Dashboard</h3>
 
-        <form method="get" class="month-filter">
-            {% for m in meses_disponibles %}
-                {% if m.activo %}
-                    <button name="mes" value="{{ m.valor }}" class="month-btn">
-                        {{ m.label }}
-                    </button>
-                {% else %}
-                    <button type="button" class="month-btn disabled">
-                        {{ m.label }}
-                    </button>
-                {% endif %}
-            {% endfor %}
-        </form>
+        <div class="meses-filtro">
+    <a href="/dashboard"
+       class="mes-btn {% if not mes %}active{% endif %}">
+        Todos
+    </a>
+
+    {% for m in meses_disponibles %}
+        <a href="/dashboard?mes={{ m.valor }}"
+           class="mes-btn {% if m.valor == mes %}active{% endif %}">
+            {{ m.valor }}
+        </a>
+    {% endfor %}
+</div>
+
     </aside>
 
     <!-- ===== MAIN ===== -->
