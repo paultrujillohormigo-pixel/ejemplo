@@ -72,6 +72,7 @@ def nuevo_pedido():
             proteinas = cursor.fetchall()
 
             if request.method == "POST":
+                fecha = request.form["fecha"]  # ✅ FECHA SELECCIONADA
                 origen = request.form["origen"]
                 mesero = request.form["mesero"]
                 metodo_pago = request.form["metodo_pago"]
@@ -93,7 +94,6 @@ def nuevo_pedido():
                     if cant <= 0:
                         continue
 
-                    # ✅ PRECIO SEGÚN ORIGEN (UBER / NORMAL)
                     cursor.execute("""
                         SELECT 
                             CASE 
@@ -127,10 +127,15 @@ def nuevo_pedido():
                 cursor.execute("""
                     INSERT INTO pedidos
                     (fecha, origen, mesero, metodo_pago, total, monto_uber, neto)
-                    VALUES (NOW(), %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    origen, mesero, metodo_pago,
-                    total, monto_uber, neto
+                    fecha,          # ✅ USAMOS LA FECHA DEL FORM
+                    origen,
+                    mesero,
+                    metodo_pago,
+                    total,
+                    monto_uber,
+                    neto
                 ))
 
                 pedido_id = cursor.lastrowid
@@ -207,7 +212,7 @@ def compras():
 # ================== DASHBOARD ==================
 @app.route("/dashboard")
 def dashboard():
-    mes = request.args.get("mes")  # formato YYYY-MM
+    mes = request.args.get("mes")
 
     conn = get_connection()
     try:
