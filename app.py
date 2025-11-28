@@ -1,135 +1,118 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from db import get_connection
-from decimal import Decimal
+{% extends "base.html" %}
+{% block content %}
 
-app = Flask(__name__)
-app.secret_key = "super_secret_key"  # cambia en producción
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<div class="dashboard">
 
-# ================== FILTRO MONEDA ==================
-@app.template_filter("money")
-def money_format(value):
-    try:
-        return "${:,.2f}".format(float(value))
-    except:
-        return value
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <h3>📊 Dashboard</h3>
 
+        <a href="/dashboard" class="btn">Todos</a>
 
-# ================== HOME ==================
-@app.route("/")
-def index():
-    return redirect(url_for("dashboard"))
+        {% for m in meses_disponibles %}
+            <a href="/dashboard?mes={{ m.valor }}"
+               class="btn {% if mes == m.valor %}active{% endif %}">
+                {{ m.valor }}
+            </a>
+        {% endfor %}
+    </aside>
 
+    <!-- CONTENIDO -->
+    <main>
 
-# ================== DASHBOARD ==================
-@app.route("/dashboard")
-def dashboard():
-    mes = request.args.get("mes")  # YYYY-MM o None
+        <!-- KPIs -->
+        <div class="kpis">
+            <div class="kpi">Ingresos<br><b>{{ total_ingresos | money }}</b></div>
+            <div class="kpi">Costos<br><b>{{ total_costos | money }}</b></div>
+            <div class="kpi">Utilidad<br><b>{{ utilidad | money }}</b></div>
+            <div class="kpi">Margen<br><b>{{ margen }}%</b></div>
+        </div>
 
-    conn = get_connection()
-    try:
-        with conn.cursor() as cursor:
+        <!-- GRAFICAS -->
+        <div class="charts">
+            <div class="box">
+                <canvas id="barras"></canvas>
+            </div>
+            <div class="box">
+                <canvas id="dona"></canvas>
+            </div>
+        </div>
 
-            # ========= MESES DISPONIBLES =========
-            cursor.execute("""
-                SELECT DISTINCT DATE_FORMAT(fecha, '%%Y-%%m') AS valor
-                FROM pedidos
-                ORDER BY valor
-            """)
-            meses_disponibles = cursor.fetchall()
+        <!-- VENTAS DIA -->
+        <div class="box">
+            <h4>Ventas por día</h4>
+            <table>
+                <tr><th>Día</th><th>Pedidos</th><th>Total</th><th>Neto</th></tr>
+                {% for v in ventas_dia %}
+                <tr>
+                    <td>{{ v.dia }}</td>
+                    <td>{{ v.pedidos }}</td>
+                    <td>{{ v.total | money }}</td>
+                    <td>{{ v.neto | money }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
 
-            filtro = ""
-            params = []
+        <!-- TOP PRODUCTOS -->
+        <div class="box">
+            <h4>Top productos</h4>
+            <table>
+                <tr><th>Producto</th><th>Cantidad</th><th>Ingreso</th></tr>
+                {% for p in top_productos %}
+                <tr>
+                    <td>{{ p.nombre }}</td>
+                    <td>{{ p.cantidad }}</td>
+                    <td>{{ p.ingreso | money }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
 
-            if mes:
-                filtro = "WHERE DATE_FORMAT(fecha, '%%Y-%%m') = %s"
-                params.append(mes)
+    </main>
+</div>
 
-            # ========= INGRESOS =========
-            cursor.execute("""
-                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
-                       SUM(total) AS total
-                FROM pedidos
-                """ + filtro + """
-                GROUP BY mes
-                ORDER BY mes
-            """, params)
-            ingresos = cursor.fetchall()
+<script>
+new Chart(document.getElementById("barras"),{
+    type:"bar",
+    data:{
+        labels:{{ ingresos|map(attribute="mes")|list|tojson }},
+        datasets:[
+            {label:"Ingresos",data:{{ ingresos|map(attribute="total")|list|tojson }},backgroundColor:"#22c55e"},
+            {label:"Costos",data:{{ costos|map(attribute="costo")|list|tojson }},backgroundColor:"#ef4444"}
+        ]
+    },
+    options:{maintainAspectRatio:false}
+});
 
-            # ========= COSTOS =========
-            cursor.execute("""
-                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
-                       SUM(costo) AS costo
-                FROM insumos_compras
-                """ + filtro + """
-                GROUP BY mes
-                ORDER BY mes
-            """, params)
-            costos = cursor.fetchall()
+new Chart(document.getElementById("dona"),{
+    type:"doughnut",
+    data:{
+        labels:{{ costos_tipo|map(attribute="tipo_costo")|list|tojson }},
+        datasets:[{
+            data:{{ costos_tipo|map(attribute="total")|list|tojson }},
+            backgroundColor:["#f59e0b","#6366f1","#10b981","#ef4444"]
+        }]
+    },
+    options:{maintainAspectRatio:false}
+});
+</script>
 
-            # ========= COSTOS POR TIPO =========
-            cursor.execute("""
-                SELECT tipo_costo, SUM(costo) AS total
-                FROM insumos_compras
-                """ + filtro + """
-                GROUP BY tipo_costo
-            """, params)
-            costos_tipo = cursor.fetchall()
+<style>
+.dashboard{display:grid;grid-template-columns:200px 1fr;height:100vh}
+.sidebar{background:#1f2937;color:#fff;padding:20px}
+.btn{display:block;margin-bottom:8px;padding:8px;background:#f59e0b;color:#fff;border-radius:6px;text-align:center;text-decoration:none}
+.btn.active{background:#ea580c}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:20px}
+.kpi{background:#fff;padding:15px;border-radius:8px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px}
+.box{background:#fff;padding:15px;border-radius:8px;height:260px}
+canvas{width:100%!important;height:100%!important}
+table{width:100%;margin-top:8px}
+th{background:#111;color:#fff;padding:6px}
+td{padding:6px}
+</style>
 
-            # ========= KPI =========
-            total_ingresos = sum(i["total"] for i in ingresos if i["total"])
-            total_costos = sum(c["costo"] for c in costos if c["costo"])
-            utilidad = total_ingresos - total_costos
-            margen = round((utilidad / total_ingresos) * 100, 2) if total_ingresos else 0
-
-            # ========= VENTAS POR DIA =========
-            cursor.execute("""
-                SELECT DATE(fecha) AS dia,
-                       COUNT(*) AS pedidos,
-                       SUM(total) AS total,
-                       SUM(neto) AS neto
-                FROM pedidos
-                """ + filtro + """
-                GROUP BY DATE(fecha)
-                ORDER BY dia DESC
-                LIMIT 15
-            """, params)
-            ventas_dia = cursor.fetchall()
-
-            # ========= TOP PRODUCTOS =========
-            cursor.execute("""
-                SELECT p.nombre,
-                       SUM(pi.cantidad) AS cantidad,
-                       SUM(pi.subtotal) AS ingreso
-                FROM pedido_items pi
-                JOIN pedidos pe ON pe.id = pi.pedido_id
-                JOIN productos p ON p.id = pi.producto_id
-                """ + filtro + """
-                GROUP BY p.id
-                ORDER BY ingreso DESC
-                LIMIT 10
-            """, params)
-            top_productos = cursor.fetchall()
-
-    finally:
-        conn.close()
-
-    return render_template(
-        "dashboard.html",
-        ingresos=ingresos,
-        costos=costos,
-        costos_tipo=costos_tipo,
-        total_ingresos=total_ingresos,
-        total_costos=total_costos,
-        utilidad=utilidad,
-        margen=margen,
-        ventas_dia=ventas_dia,
-        top_productos=top_productos,
-        meses_disponibles=meses_disponibles,
-        mes=mes
-    )
-
-
-# ================== RUN ==================
-if __name__ == "__main__":
-    app.run(debug=True)
+{% endblock %}
