@@ -97,7 +97,7 @@ def nuevo_pedido():
                     cursor.execute("""
                         SELECT 
                             CASE 
-                                WHEN %s = 'uber' AND precio_uber IS NOT NULL
+                                WHEN %s = 'Uber' AND precio_uber IS NOT NULL
                                     THEN precio_uber
                                 ELSE precio
                             END AS precio_final
