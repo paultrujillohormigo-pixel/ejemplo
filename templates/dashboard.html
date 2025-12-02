@@ -175,7 +175,7 @@ new Chart(document.getElementById('ingresosChart'), {
 
 // Dona
 new Chart(document.getElementById('costosChart'), {
-    type: 'doughnut',
+    type: 'bar',
     data: {
         labels: {{ costos_tipo | map(attribute="tipo_costo") | list | tojson }},
         datasets: [{
