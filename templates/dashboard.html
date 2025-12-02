@@ -87,6 +87,27 @@
 
 </div>
 
+<div class="card card-tabla">
+    <h4>Top 10 Gastos que Más Impactaron</h4>
+    <table>
+        <tr>
+            <th>Concepto</th>
+            <th>Tipo</th>
+            <th>Veces</th>
+            <th>Total</th>
+        </tr>
+        {% for g in top_gastos %}
+        <tr>
+            <td>{{ g.concepto }}</td>
+            <td>{{ g.tipo_costo|capitalize }}</td>
+            <td>{{ g.veces }}</td>
+            <td>{{ g.total_gastado | money }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+
         <!-- ===== TABLA VENTAS POR DÍA ===== -->
         <div class="card card card-tabla">
             <h4>Ventas por Día</h4>
