@@ -121,6 +121,7 @@
                 {% for v in ventas_dia %}
                 <tr>
                     <td>{{ v.dia }}</td>
+                    <td>{{ v.dia_semana }}</td>
                     <td>{{ v.pedidos }}</td>
                     <td>{{ v.total | money }}</td>
                     <td>{{ v.neto | money }}</td>
