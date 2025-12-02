@@ -292,6 +292,25 @@ def dashboard():
             """, params)
             top_productos = cursor.fetchall()
 
+            cursor.execute("""
+                    SELECT
+                    concepto,
+                    tipo_costo,
+                    COUNT(*) AS veces,
+                    SUM(costo) AS total_gastado
+                        FROM insumos_compras
+                    WHERE (%s IS NULL OR DATE_FORMAT(fecha, '%%Y-%%m') = %s)
+                GROUP BY concepto, tipo_costo
+                ORDER BY total_gastado DESC
+                LIMIT 10
+            """, (mes, mes))
+
+            top_gastos = cursor.fetchall()
+
+
+
+
+    
     finally:
         conn.close()
 
@@ -308,6 +327,8 @@ def dashboard():
         margen=round(margen, 2),
         meses_disponibles=meses_disponibles,
         mes=mes,
+        top_gastos=top_gastos,
+
     )
 
 
