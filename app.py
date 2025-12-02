@@ -307,6 +307,24 @@ def dashboard():
 
             top_gastos = cursor.fetchall()
 
+            cursor.execute("""
+                SELECT
+                    AVG(pedidos) AS avg_pedidos,
+                    AVG(total)   AS avg_total,
+                    AVG(neto)    AS avg_neto
+                    FROM (
+                    SELECT
+                    DATE(fecha),
+                    COUNT(*)   AS pedidos,
+                    SUM(total) AS total,
+                    SUM(neto)  AS neto
+                    FROM ventas
+                    WHERE (%s IS NULL OR DATE_FORMAT(fecha, '%%Y-%%m') = %s)
+                    GROUP BY DATE(fecha)
+                    ) t
+            """, (mes, mes))
+
+            promedios_dia = cursor.fetchone()
 
 
 
@@ -327,6 +345,7 @@ def dashboard():
         margen=round(margen, 2),
         meses_disponibles=meses_disponibles,
         mes=mes,
+        promedios_dia=promedios_dia
         top_gastos=top_gastos,
 
     )
