@@ -318,7 +318,7 @@ def dashboard():
                     COUNT(*)   AS pedidos,
                     SUM(total) AS total,
                     SUM(neto)  AS neto
-                    FROM ventas
+                    FROM pedidos
                     WHERE (%s IS NULL OR DATE_FORMAT(fecha, '%%Y-%%m') = %s)
                     GROUP BY DATE(fecha)
                     ) t
