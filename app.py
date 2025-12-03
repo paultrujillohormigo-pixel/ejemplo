@@ -242,17 +242,17 @@ def dashboard():
             if mes:
                 cursor.execute("""
                     SELECT
-                        DATE_FORMAT(fecha, '%Y-%m') AS mes,
+                        DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
                         SUM(costo) AS costo
                     FROM insumos_compras
                     WHERE tipo_costo = 'variable'
-                      AND DATE_FORMAT(fecha, '%Y-%m') = %s
+                      AND DATE_FORMAT(fecha, '%%Y-%%m') = %s
                     GROUP BY mes
                 """, (mes,))
             else:
                 cursor.execute("""
                     SELECT
-                        DATE_FORMAT(fecha, '%Y-%m') AS mes,
+                        DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
                         SUM(costo) AS costo
                     FROM insumos_compras
                     WHERE tipo_costo = 'variable'
@@ -302,7 +302,7 @@ def dashboard():
             # ===== MESES DISPONIBLES =====
             cursor.execute("""
                 SELECT DISTINCT
-                    DATE_FORMAT(fecha, '%Y-%m') AS mes
+                    DATE_FORMAT(fecha, '%%Y-%%m') AS mes
                 FROM pedidos
                 ORDER BY mes DESC
             """)
