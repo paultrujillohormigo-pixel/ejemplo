@@ -38,7 +38,7 @@ def productos():
                     request.form["precio"],
                 ))
                 conn.commit()
-                flash("Producto creado", "success")
+                flash("Producto creado correctamente", "success")
 
             cursor.execute("""
                 SELECT *
@@ -70,9 +70,9 @@ def nuevo_pedido():
 
             if request.method == "POST":
                 fecha = request.form["fecha"]
-                origen = request.form["origen"].lower().strip()
-                metodo_pago = request.form["metodo_pago"]
+                origen = request.form["origen"].strip().lower()
                 mesero = request.form["mesero"]
+                metodo_pago = request.form["metodo_pago"]
                 monto_uber = Decimal(request.form.get("monto_uber", 0) or 0)
 
                 productos_ids = request.form.getlist("producto_id")
@@ -111,7 +111,8 @@ def nuevo_pedido():
                     INSERT INTO pedidos
                     (fecha, origen, mesero, metodo_pago, total, monto_uber, neto)
                     VALUES (%s,%s,%s,%s,%s,%s,%s)
-                """, (fecha, origen, mesero, metodo_pago, total, monto_uber, neto))
+                """, (fecha, origen, mesero, metodo_pago,
+                      total, monto_uber, neto))
 
                 pedido_id = cursor.lastrowid
 
@@ -123,7 +124,7 @@ def nuevo_pedido():
                     """, (pedido_id, pid, cantidad, precio, subtotal))
 
                 conn.commit()
-                flash("Pedido registrado", "success")
+                flash("Pedido registrado correctamente", "success")
                 return redirect(url_for("nuevo_pedido"))
     finally:
         conn.close()
@@ -160,7 +161,11 @@ def compras():
                 conn.commit()
                 flash("Compra registrada", "success")
 
-            cursor.execute("SELECT * FROM insumos_compras ORDER BY fecha DESC")
+            cursor.execute("""
+                SELECT *
+                FROM insumos_compras
+                ORDER BY fecha DESC
+            """)
             compras = cursor.fetchall()
     finally:
         conn.close()
@@ -214,7 +219,7 @@ def dashboard():
             costos_map = {c["mes"]: float(c["costo"] or 0) for c in costos_db}
             costos = [{"mes": i["mes"], "costo": costos_map.get(i["mes"], 0)} for i in ingresos]
 
-            # -------- KPIS --------
+            # -------- KPIs --------
             total_ingresos = sum(i["total"] for i in ingresos if i["total"])
             total_costos = sum(c["costo"] for c in costos)
             utilidad = total_ingresos - total_costos
@@ -226,7 +231,14 @@ def dashboard():
                 FROM pedidos
                 ORDER BY mes DESC
             """)
-            meses_disponibles = [m["mes"] for m in cursor.fetchall()]
+            meses_disponibles = [m["mes"] for m in cursor.fetchall() if m["mes"]]
+
+            # -------- PROMEDIOS (BLINDADO) --------
+            promedios_dia = {
+                "avg_pedidos": 0,
+                "avg_total": 0,
+                "avg_neto": 0
+            }
 
     finally:
         conn.close()
@@ -238,9 +250,10 @@ def dashboard():
         total_ingresos=total_ingresos,
         total_costos=total_costos,
         utilidad=utilidad,
-        margen=round(margen,2),
+        margen=round(margen, 2),
         meses_disponibles=meses_disponibles,
-        mes=mes
+        mes=mes,
+        promedios_dia=promedios_dia
     )
 
 
