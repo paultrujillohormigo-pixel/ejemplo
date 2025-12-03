@@ -259,7 +259,7 @@ def dashboard():
             utilidad = total_ingresos - total_costos
             margen = (utilidad / total_ingresos * 100) if total_ingresos else 0
 
-            ccursor.execute(f"""
+            cursor.execute(f"""
                     SELECT
                         DATE(fecha) AS dia,
                         DAYNAME(fecha) AS dia_semana,
