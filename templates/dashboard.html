@@ -87,6 +87,10 @@
 
 </div>
 
+
+    <!-- 10 COSTOS MAS IMPACTADOS -->
+        
+
 <div class="card card-tabla">
     <h4>Top 10 Gastos que Más Impactaron</h4>
     <table>
@@ -109,6 +113,9 @@
 
 
         <!-- ===== TABLA VENTAS POR DÍA ===== -->
+
+
+        
         <div class="card card card-tabla">
             <h4>Ventas por Día</h4>
             <table>
@@ -132,6 +139,7 @@
 
                 <tr style="background:#f3f4f6;font-weight:bold;">
     <td>Promedio</td>
+    <td></td>               
     <td>{{ promedios_dia.avg_pedidos | round(1) }}</td>
     <td>{{ promedios_dia.avg_total | money }}</td>
     <td>{{ promedios_dia.avg_neto | money }}</td>
