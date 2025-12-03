@@ -268,16 +268,18 @@ def dashboard():
 
             # Ventas por día
             cursor.execute(f"""
-                SELECT DATE(fecha) AS dia,
-                       DAYNAME(fecha) AS dia_semana,
-                       COUNT(*) AS pedidos,
-                       SUM(total) AS total,
-                       SUM(neto) AS neto
-                FROM pedidos
-                {filtro}
-                GROUP BY DATE(fecha)
-                ORDER BY dia DESC
-            """, params)
+                    SELECT
+                        DATE(fecha) AS dia,
+                        DAYNAME(fecha) AS dia_semana,
+                        COUNT(*) AS pedidos,
+                        SUM(total) AS total,
+                        SUM(neto) AS neto
+                    FROM pedidos
+                    {filtro}
+                    GROUP BY DATE(fecha), DAYNAME(fecha)
+                    ORDER BY dia DESC
+                """, params)
+
             ventas_dia = cursor.fetchall()
 
             # Meses disponibles
