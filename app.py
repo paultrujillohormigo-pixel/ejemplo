@@ -239,10 +239,11 @@ def dashboard():
                 SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
                        SUM(costo) AS costo
                 FROM insumos_compras
-                {filtro}
+                WHERE tipo_costo = 'variable'
+                  {f"AND DATE_FORMAT(fecha, '%%Y-%%m') = %s" if mes else ""}
                 GROUP BY mes
-                ORDER BY mes
-            """, params)
+            """, ([mes] if mes else []))
+
             costos = cursor.fetchall()
 
             cursor.execute(f"""
