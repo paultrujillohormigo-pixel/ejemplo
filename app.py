@@ -218,6 +218,7 @@ def dashboard():
     try:
         with conn.cursor() as cursor:
 
+            # Filtro general para consultas que dependen de mes
             filtro = ""
             params = []
 
@@ -225,9 +226,11 @@ def dashboard():
                 filtro = "WHERE DATE_FORMAT(fecha, '%%Y-%%m') = %s"
                 params.append(mes)
 
+            # ===== INGRESOS POR MES =====
             cursor.execute(f"""
-                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
-                       SUM(total) AS total
+                SELECT
+                    DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
+                    SUM(total) AS total
                 FROM pedidos
                 {filtro}
                 GROUP BY mes
@@ -235,57 +238,82 @@ def dashboard():
             """, params)
             ingresos = cursor.fetchall()
 
-            cursor.execute(f"""
-                SELECT DATE_FORMAT(fecha, '%%Y-%%m') AS mes,
-                       SUM(costo) AS costo
-                FROM insumos_compras
-                WHERE tipo_costo = 'variable'
-                  {f"AND DATE_FORMAT(fecha, '%%Y-%%m') = %s" if mes else ""}
-                GROUP BY mes
-            """, ([mes] if mes else []))
+            # ===== COSTOS VARIABLES POR MES =====
+            if mes:
+                cursor.execute("""
+                    SELECT
+                        DATE_FORMAT(fecha, '%Y-%m') AS mes,
+                        SUM(costo) AS costo
+                    FROM insumos_compras
+                    WHERE tipo_costo = 'variable'
+                      AND DATE_FORMAT(fecha, '%Y-%m') = %s
+                    GROUP BY mes
+                """, (mes,))
+            else:
+                cursor.execute("""
+                    SELECT
+                        DATE_FORMAT(fecha, '%Y-%m') AS mes,
+                        SUM(costo) AS costo
+                    FROM insumos_compras
+                    WHERE tipo_costo = 'variable'
+                    GROUP BY mes
+                """)
+            costos_raw = cursor.fetchall()
 
-            costos = cursor.fetchall()
+            # Normalizar costos para que siempre haya valor por cada mes con ingresos
+            costos_dict = {c["mes"]: float(c["costo"] or 0) for c in costos_raw}
+            costos = [
+                {"mes": i["mes"], "costo": costos_dict.get(i["mes"], 0)}
+                for i in ingresos
+            ]
 
+            # ===== COSTOS POR TIPO (FIJO / VARIABLE) =====
             cursor.execute(f"""
-                SELECT tipo_costo,
-                       SUM(costo) AS total
+                SELECT
+                    tipo_costo,
+                    SUM(costo) AS total
                 FROM insumos_compras
                 {filtro}
                 GROUP BY tipo_costo
             """, params)
             costos_tipo = cursor.fetchall()
 
+            # ===== KPIs =====
             total_ingresos = sum(i["total"] for i in ingresos if i["total"])
             total_costos = sum(c["costo"] for c in costos if c["costo"])
             utilidad = total_ingresos - total_costos
             margen = (utilidad / total_ingresos * 100) if total_ingresos else 0
 
+            # ===== VENTAS POR DÍA =====
             cursor.execute(f"""
-                    SELECT
-                        DATE(fecha) AS dia,
-                        DAYNAME(fecha) AS dia_semana,
-                        COUNT(*) AS pedidos,
-                        SUM(total) AS total,
-                        SUM(neto) AS neto
-                    FROM pedidos
-                    {filtro}
-                    GROUP BY DATE(fecha), DAYNAME(fecha)
-                    ORDER BY dia DESC
-                """, params)
-
+                SELECT
+                    DATE(fecha) AS dia,
+                    DAYNAME(fecha) AS dia_semana,
+                    COUNT(*) AS pedidos,
+                    SUM(total) AS total,
+                    SUM(neto) AS neto
+                FROM pedidos
+                {filtro}
+                GROUP BY DATE(fecha), DAYNAME(fecha)
+                ORDER BY dia DESC
+            """, params)
             ventas_dia = cursor.fetchall()
 
+            # ===== MESES DISPONIBLES =====
             cursor.execute("""
-                SELECT DISTINCT DATE_FORMAT(fecha, '%Y-%m') AS mes
+                SELECT DISTINCT
+                    DATE_FORMAT(fecha, '%Y-%m') AS mes
                 FROM pedidos
                 ORDER BY mes DESC
             """)
             meses_disponibles = [m["mes"] for m in cursor.fetchall()]
 
+            # ===== TOP PRODUCTOS =====
             cursor.execute(f"""
-                SELECT p.nombre,
-                       SUM(pi.cantidad) AS cantidad,
-                       SUM(pi.subtotal) AS ingreso
+                SELECT
+                    p.nombre,
+                    SUM(pi.cantidad) AS cantidad,
+                    SUM(pi.subtotal) AS ingreso
                 FROM pedido_items pi
                 JOIN pedidos pe ON pe.id = pi.pedido_id
                 JOIN productos p ON p.id = pi.producto_id
@@ -296,43 +324,40 @@ def dashboard():
             """, params)
             top_productos = cursor.fetchall()
 
+            # ===== TOP GASTOS =====
             cursor.execute("""
-                    SELECT
+                SELECT
                     concepto,
                     tipo_costo,
                     COUNT(*) AS veces,
                     SUM(costo) AS total_gastado
-                        FROM insumos_compras
-                    WHERE (%s IS NULL OR DATE_FORMAT(fecha, '%%Y-%%m') = %s)
+                FROM insumos_compras
+                WHERE (%s IS NULL OR DATE_FORMAT(fecha, '%%Y-%%m') = %s)
                 GROUP BY concepto, tipo_costo
                 ORDER BY total_gastado DESC
                 LIMIT 10
             """, (mes, mes))
-
             top_gastos = cursor.fetchall()
 
+            # ===== PROMEDIOS POR DÍA =====
             cursor.execute("""
                 SELECT
                     AVG(pedidos) AS avg_pedidos,
                     AVG(total)   AS avg_total,
                     AVG(neto)    AS avg_neto
-                    FROM (
+                FROM (
                     SELECT
-                    DATE(fecha),
-                    COUNT(*)   AS pedidos,
-                    SUM(total) AS total,
-                    SUM(neto)  AS neto
+                        DATE(fecha),
+                        COUNT(*)   AS pedidos,
+                        SUM(total) AS total,
+                        SUM(neto)  AS neto
                     FROM pedidos
                     WHERE (%s IS NULL OR DATE_FORMAT(fecha, '%%Y-%%m') = %s)
                     GROUP BY DATE(fecha)
-                    ) t
+                ) t
             """, (mes, mes))
-
             promedios_dia = cursor.fetchone()
 
-
-
-    
     finally:
         conn.close()
 
@@ -351,7 +376,6 @@ def dashboard():
         mes=mes,
         promedios_dia=promedios_dia,
         top_gastos=top_gastos,
-
     )
 
 
